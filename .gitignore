@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+package-lock.json
+
+# Build
+dist/
+coverage/
+.idea/
+.vscode/
+
+# Env
+.env
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db

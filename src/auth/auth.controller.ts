@@ -2,8 +2,10 @@ import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshDto } from './dto/refresh.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiConflictResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 
 @ApiTags('Auth')
@@ -19,10 +21,7 @@ export class AuthController {
     schema: {
       example: {
         success: false,
-        error: {
-          code: 409,
-          message: '이미 가입된 이메일입니다.',
-        },
+        error: { code: 409, message: '이미 가입된 이메일입니다.'},
       },
     },
   })
@@ -38,14 +37,27 @@ export class AuthController {
     schema: {
       example: {
         success: false,
-        error: {
-          code: 401,
-          message: '이메일 또는 비밀번호가 올바르지 않습니다.',
-        },
+        error: { code: 401, message: '이메일 또는 비밀번호가 올바르지 않습니다.' }, 
       },
     },
   })
   async login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(dto);
+  }
+
+  @Post('refresh')
+  @ApiOperation({ summary: '토큰 재발급', description: 'Refresh Token으로 Access Token 갱신' })
+  @ApiOkResponse({ description: '재발급 성공', type: RefreshResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh Token 검증 실패',
+    schema: {
+      example: {
+        success: false,
+        error: { code: 401, message: 'Refresh Token 검증 실패' },
+      },
+    },
+  })
+  async refresh(@Body() dto: RefreshDto): Promise<RefreshResponseDto> {
+    return this.authService.refreshToken(dto.refreshToken);
   }
 }

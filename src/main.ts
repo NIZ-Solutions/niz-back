@@ -13,6 +13,15 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // CORS 허용
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
+  // 글로벌 prefix
+  app.setGlobalPrefix('api');
+
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('NIZ API Docs')
@@ -22,14 +31,15 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   // ValidationPipe (DTO 유효성 검사)
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,              // DTO에 없는 속성 제거
-      forbidNonWhitelisted: true,   // 정의되지 않은 속성이 들어오면 에러
-      transform: true,              // 타입 자동 변환
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
@@ -39,6 +49,7 @@ async function bootstrap() {
   // 글로벌 예외 필터 (실패 응답 포맷 통일)
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  await app.listen(3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
 }
 bootstrap();

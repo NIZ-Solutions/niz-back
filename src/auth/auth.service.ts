@@ -4,7 +4,6 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
@@ -128,7 +127,7 @@ export class AuthService {
       });
 
       return { accessToken: newAccessToken, refreshToken: newRefreshToken };
-    } catch (e) {
+    } catch {
       throw new UnauthorizedException('Refresh Token 검증 실패');
     }
   }

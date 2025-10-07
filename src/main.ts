@@ -19,9 +19,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // 글로벌 prefix
-  app.setGlobalPrefix('api');
-
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('NIZ API Docs')

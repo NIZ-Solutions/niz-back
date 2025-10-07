@@ -22,29 +22,50 @@ import { ErrorResponseDto } from './dto/error-response.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // 회원가입
   @Public()
   @Post('signup')
-  @ApiOperation({ summary: '회원가입', description: '이메일, 비밀번호, 이름, 전화번호로 회원가입' })
+  @ApiOperation({
+    summary: '회원가입',
+    description: '아이디, 비밀번호, 이름, 전화번호로 회원가입합니다.',
+  })
   @ApiCreatedResponse({ description: '회원가입 성공', type: UserResponseDto })
-  @ApiConflictResponse({ description: '이미 존재하는 이메일', type: ErrorResponseDto })
+  @ApiConflictResponse({
+    description: '이미 존재하는 아이디',
+    type: ErrorResponseDto,
+  })
   async signup(@Body() dto: SignupDto): Promise<UserResponseDto> {
     return this.authService.signup(dto);
   }
 
+  // 로그인
   @Public()
   @Post('login')
-  @ApiOperation({ summary: '로그인', description: '이메일과 비밀번호로 로그인' })
+  @ApiOperation({
+    summary: '로그인',
+    description: '아이디와 비밀번호로 로그인합니다.',
+  })
   @ApiOkResponse({ description: '로그인 성공', type: LoginResponseDto })
-  @ApiUnauthorizedResponse({ description: '이메일 또는 비밀번호 불일치', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: '아이디 또는 비밀번호 불일치',
+    type: ErrorResponseDto,
+  })
   async login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(dto);
   }
 
+  // 토큰 재발급
   @Public()
   @Post('refresh')
-  @ApiOperation({ summary: '토큰 재발급', description: 'Refresh Token으로 Access Token 갱신' })
+  @ApiOperation({
+    summary: '토큰 재발급',
+    description: 'Refresh Token으로 Access Token을 갱신합니다.',
+  })
   @ApiOkResponse({ description: '재발급 성공', type: RefreshResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Refresh Token 검증 실패', type: ErrorResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh Token 검증 실패',
+    type: ErrorResponseDto,
+  })
   async refresh(@Body() dto: RefreshDto): Promise<RefreshResponseDto> {
     return this.authService.refreshToken(dto.refreshToken);
   }

@@ -17,47 +17,47 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto): Promise<UserResponseDto> {
-    // 이메일 중복 체크
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) {
-      throw new ConflictException('이미 가입된 이메일입니다.');
+    try {
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+
+        const user = await this.prisma.user.create({
+        data: {
+            userId: dto.userId,
+            passwordHash,
+            name: dto.name,
+            phone: dto.phone,
+        },
+        });
+
+        return {
+        id: user.id.toString(),
+        userId: user.userId,
+        name: user.name,
+        phone: user.phone,
+        createdAt: user.createdAt,
+        };
+    } catch (err: any) {
+        if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
+        throw new ConflictException('이미 존재하는 아이디입니다.');
+        }
+        throw err;
     }
-    
-    // 비밀번호 해시
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        name: dto.name,
-        phone: dto.phone,
-      },
-    });
-
-    return {
-      id: user.id.toString(), // BigInt → string 변환
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      createdAt: user.createdAt,
-    };
-  }
+   }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { userId: dto.userId },
     });
     if (!user) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
     }
       // 토큰 발급
-    const payload = { sub: user.id.toString(), email: user.email };
+    const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
 
@@ -75,7 +75,7 @@ export class AuthService {
 
     const userResponse: UserResponseDto = {
       id: user.id.toString(),
-      email: user.email,
+      userId: user.userId,
       name: user.name,
       phone: user.phone,
       createdAt: user.createdAt,
@@ -101,7 +101,7 @@ export class AuthService {
       }
 
       // 새 토큰 발급
-      const newPayload = { sub: userId.toString(), email: payload.email };
+      const newPayload = { sub: userId.toString(), userId: payload.userId };
       const newAccessToken = await this.jwtService.signAsync(newPayload, {
         expiresIn: '1h',
       });

@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +17,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -18,60 +26,68 @@ export class AuthService {
 
   async signup(dto: SignupDto): Promise<UserResponseDto> {
     if (!dto.termsOfService || !dto.privacyPolicy || !dto.paymentPolicy) {
-        throw new ConflictException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
+      throw new BadRequestException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
     }
 
     try {
-        const passwordHash = await bcrypt.hash(dto.password, 10);
+      const passwordHash = await bcrypt.hash(dto.password, 10);
 
-        const user = await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: {
-            userId: dto.userId,
-            passwordHash,
-            name: dto.name,
-            phone: dto.phone,
-            termsOfService: dto.termsOfService,
-            privacyPolicy: dto.privacyPolicy,
-            paymentPolicy: dto.paymentPolicy,
-            marketingOptIn: dto.marketingOptIn,
+          userId: dto.userId,
+          passwordHash,
+          name: dto.name,
+          phone: dto.phone,
+          termsOfService: dto.termsOfService,
+          privacyPolicy: dto.privacyPolicy,
+          paymentPolicy: dto.paymentPolicy,
+          marketingOptIn: dto.marketingOptIn,
         },
-        });
+      });
 
-        return {
+      return {
         id: user.id.toString(),
         userId: user.userId,
         name: user.name,
         phone: user.phone,
         createdAt: user.createdAt,
-        };
+      };
     } catch (err: any) {
-        if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
+      if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
         throw new ConflictException('이미 존재하는 아이디입니다.');
-        }
-        throw err;
+      }
+      this.logger.error('회원가입 중 오류 발생', err);
+      throw err;
     }
-    }
+  }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { userId: dto.userId },
     });
     if (!user) {
-      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디가 올바르지 않습니다.');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('아이디 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('비밀번호가 올바르지 않습니다.');
     }
-      // 토큰 발급
+
+    // 토큰 발급
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
 
-    // Refresh Token 저장 (hash로 DB에 보관)
+    // Refresh Token 저장 (hash 보관)
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    // cleanup: 이전 토큰 revoke
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revoked: false },
+      data: { revoked: true },
+    });
 
     await this.prisma.refreshToken.create({
       data: {
@@ -99,7 +115,7 @@ export class AuthService {
       });
       const userId = BigInt(payload.sub);
 
-      // refreshToken hash 검증
+      // hash 검증
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const stored = await this.prisma.refreshToken.findFirst({
         where: { userId, tokenHash, revoked: false },
@@ -117,7 +133,7 @@ export class AuthService {
         expiresIn: '7d',
       });
 
-      // 기존 토큰 revoke
+      // 기존 revoke
       await this.prisma.refreshToken.update({
         where: { id: stored.id },
         data: { revoked: true },
@@ -135,7 +151,8 @@ export class AuthService {
       });
 
       return { accessToken: newAccessToken, refreshToken: newRefreshToken };
-    } catch {
+    } catch (err) {
+      this.logger.error('Refresh Token 검증 실패', err);
       throw new UnauthorizedException('Refresh Token 검증 실패');
     }
   }

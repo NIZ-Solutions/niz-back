@@ -17,6 +17,10 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto): Promise<UserResponseDto> {
+    if (!dto.termsOfService || !dto.privacyPolicy || !dto.paymentPolicy) {
+        throw new ConflictException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
+    }
+
     try {
         const passwordHash = await bcrypt.hash(dto.password, 10);
 
@@ -26,6 +30,10 @@ export class AuthService {
             passwordHash,
             name: dto.name,
             phone: dto.phone,
+            termsOfService: dto.termsOfService,
+            privacyPolicy: dto.privacyPolicy,
+            paymentPolicy: dto.paymentPolicy,
+            marketingOptIn: dto.marketingOptIn,
         },
         });
 
@@ -42,7 +50,7 @@ export class AuthService {
         }
         throw err;
     }
-   }
+    }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({

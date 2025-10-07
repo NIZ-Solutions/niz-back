@@ -16,7 +16,11 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   status        String         @default("active")
-
+  termsOfService  Boolean  @default(false)
+  privacyPolicy   Boolean  @default(false)
+  paymentPolicy   Boolean  @default(false)
+  marketingOptIn  Boolean  @default(false)
+  
   // Relations
   auths         UserAuth[]
   refreshTokens RefreshToken[]

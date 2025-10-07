@@ -27,7 +27,7 @@ export class AuthController {
   @Post('signup')
   @ApiOperation({
     summary: '회원가입',
-    description: '아이디, 비밀번호, 이름, 전화번호로 회원가입합니다.',
+    description: '아이디, 비밀번호, 이름, 전화번호, 약관 동의(필수/선택)로 회원가입합니다.',
   })
   @ApiCreatedResponse({ description: '회원가입 성공', type: UserResponseDto })
   @ApiConflictResponse({

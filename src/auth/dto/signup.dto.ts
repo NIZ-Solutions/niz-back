@@ -11,7 +11,7 @@ export class SignupDto {
   })
   userId: string;
 
-  @ApiProperty({ example: 'Password123@', description: '비밀번호 (영문+숫자+특수문자 8~16자)' })
+  @ApiProperty({ example: 'password123@', description: '비밀번호 (영문+숫자+특수문자 8~16자)' })
   @IsNotEmpty()
   @MinLength(8)
   @MaxLength(16)

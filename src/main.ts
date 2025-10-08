@@ -24,7 +24,17 @@ async function bootstrap() {
     .setTitle('NIZ API Docs')
     .setDescription('NIZ 프로젝트 API')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        in: 'header',
+        name: 'Authorization',
+        description: 'Paste access token (without Bearer prefix)',
+    },
+    'access-token',
+      )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
+import { LogoutResponseDto } from './dto/logout-response.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -159,6 +160,19 @@ export class AuthService {
     return this.issueLoginTokens(user);
   }
 
+  // 로그아웃
+  async logout(userId: string, refreshToken: string): Promise<LogoutResponseDto> {
+      console.log('AuthService.logout userId:', userId);
+  console.log('AuthService.logout refreshToken:', refreshToken);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: BigInt(userId), tokenHash, revoked: false },
+      data: { revoked: true },
+    });
+
+    return { success: true, message: '로그아웃 되었습니다.' };
+  }
   // 내부 공통 메서드
   private async issueLoginTokens(user: any): Promise<LoginResponseDto> {
     const payload = { sub: user.id.toString(), userId: user.userId };

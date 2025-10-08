@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 
 import { KakaoStrategy } from './strategies/kakao.strategy';
 import { KakaoAuthGuard } from './guards/kakao.guard';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { KakaoAuthGuard } from './guards/kakao.guard';
     PrismaService,
     KakaoStrategy,
     KakaoAuthGuard,
+    JwtStrategy,
   ],
   exports: [AuthService],
 })

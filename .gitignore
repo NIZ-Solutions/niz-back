@@ -27,7 +27,7 @@ niz-keypair.pub
 
 # Terraform
 *.tfvars
-*.tfstate
+*.tfstate*
 *.tfstate.backup
 .terraform/
 override.tf

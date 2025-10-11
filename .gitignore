@@ -19,3 +19,16 @@ coverage/
 .DS_Store
 Thumbs.db
 /generated/prisma
+
+# keypair
+*.pem
+niz-keypair
+niz-keypair.pub
+
+# Terraform
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+override.tf
+override.tf.json

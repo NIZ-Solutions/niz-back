@@ -8,7 +8,6 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { LogoutResponseDto } from './dto/logout-response.dto';
-import { ErrorResponseDto } from './dto/error-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard'; 
 import { KakaoAuthGuard } from './guards/kakao.guard';
@@ -18,9 +17,6 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiBearerAuth,
-  ApiConflictResponse,
-  ApiUnauthorizedResponse,
-  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
 @ApiTags('Auth')

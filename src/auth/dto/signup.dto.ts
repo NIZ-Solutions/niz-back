@@ -28,21 +28,7 @@ export class SignupDto {
   @IsNotEmpty()
   phone: string;
 
-  // 필수 약관 동의
-  @ApiProperty({ example: true, description: '이용약관 동의 (필수)' })
-  @IsBoolean()
-  termsOfService: boolean;
-
   @ApiProperty({ example: true, description: '개인정보 수집 및 이용 동의 (필수)' })
   @IsBoolean()
   privacyPolicy: boolean;
-
-  @ApiProperty({ example: true, description: '결제 및 환불 약관 동의 (필수)' })
-  @IsBoolean()
-  paymentPolicy: boolean;
-
-  // 선택 약관 동의
-  @ApiProperty({ example: false, description: '마케팅 정보 수신 동의 (선택)' })
-  @IsBoolean()
-  marketingOptIn: boolean;
 }

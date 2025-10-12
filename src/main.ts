@@ -56,7 +56,7 @@ async function bootstrap() {
   // 글로벌 예외 필터 (실패 응답 포맷 통일)
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 4000;
   await app.listen(port);
 }
 bootstrap();

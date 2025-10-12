@@ -25,7 +25,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // 회원가입
+  // 회원가입 (토큰 포함)
   async signup(dto: SignupDto): Promise<SignupResponseDto> {
     if (!dto.privacyPolicy) {
       throw new BadRequestException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
@@ -67,7 +67,7 @@ export class AuthService {
     }
   }
 
-  // 로컬 로그인
+  // 로그인
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { userId: dto.userId } });
     if (!user) throw new UnauthorizedException('아이디가 올바르지 않습니다.');
@@ -77,49 +77,6 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedException('비밀번호가 올바르지 않습니다.');
 
-    return this.issueLoginTokens(user);
-  }
-
-  // 카카오 유저 검증 및 신규 생성
-  async validateKakaoUser(profile: any) {
-    const provider = 'kakao';
-    const providerId = String(profile.providerId ?? profile.id);
-    const nickname =
-      profile.nickname ??
-      profile.username ??
-      profile.displayName ??
-      profile._json?.properties?.nickname ??
-      '카카오사용자';
-
-    const existingAuth = await this.prisma.userAuth.findFirst({
-      where: { provider, providerId },
-      include: { user: true },
-    });
-    if (existingAuth) return existingAuth.user;
-
-    const newAuth = await this.prisma.userAuth.create({
-      data: {
-        provider,
-        providerId,
-        user: {
-          create: {
-            userId: `kakao_${providerId}`,
-            name: nickname,
-            passwordHash: null,
-            phone: '',
-            status: 'active',
-            privacyPolicy: false,
-          },
-        },
-      },
-      include: { user: true },
-    });
-
-    return newAuth.user;
-  }
-
-  // 카카오 로그인 → JWT 발급
-  async kakaoLogin(user: any): Promise<LoginResponseDto> {
     return this.issueLoginTokens(user);
   }
 
@@ -169,6 +126,7 @@ export class AuthService {
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+
     await this.saveRefreshToken(user.id, refreshToken);
 
     return {
@@ -186,7 +144,9 @@ export class AuthService {
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
+
     await this.saveRefreshToken(user.id, refreshToken);
+
     return { accessToken, refreshToken };
   }
 

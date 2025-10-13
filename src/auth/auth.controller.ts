@@ -42,7 +42,7 @@ export class AuthController {
     schema: {
       example: {
         userId: 'niz123',
-        password: '12345678',
+        password: 'password123!',
         name: '홍길동',
         phone: '01012345678',
         privacyPolicy: true,
@@ -188,11 +188,8 @@ export class AuthController {
       },
     },
   })
-  async logout(@Req() req, @Body() dto: LogoutDto): Promise<LogoutResponseDto> {
+  async logout(@Req() req, @Body() dto: LogoutDto): Promise<{ message: string }> {
     await this.authService.logout(req.user.id, dto.refreshToken);
-    return {
-      success: true,
-      message: '로그아웃 되었습니다.',
-    };
+    return { message: '로그아웃 되었습니다.' };
   }
 }

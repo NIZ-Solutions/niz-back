@@ -1,0 +1,27 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 43.202.183.151           
+          username: ubuntu               
+          key: ${{ secrets.niz-secret }}
+          script: |
+            cd ~/niz-back
+            git pull origin main
+            npm install
+            npm run build
+            pm2 restart niz-back || pm2 start dist/main.js --name niz-back

@@ -44,7 +44,8 @@ export class PaymentsController {
     @Body() dto: CreatePaymentDto,
     @Req() req,
   ): Promise<PaymentResponseDto> {
+    const userId = BigInt(req.user.id);
     console.log('PaymentsController user:', req.user);
-    return this.paymentsService.completePayment(dto);
+    return this.paymentsService.completePayment(dto, userId);
   }
 }

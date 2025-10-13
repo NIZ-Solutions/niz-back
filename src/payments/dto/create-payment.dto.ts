@@ -30,8 +30,4 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   otherText?: string;
-
-  @ApiProperty({ example: 1, description: '회원 ID' })
-  @IsString()
-  userId: string;
 }

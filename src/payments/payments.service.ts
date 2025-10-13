@@ -14,7 +14,7 @@ export class PaymentsService {
     });
   }
 
-  async completePayment(dto: CreatePaymentDto): Promise<PaymentResponseDto> {
+  async completePayment(dto: CreatePaymentDto, userId: bigint): Promise<PaymentResponseDto> {
     try {
       // 1. PortOne API 검증
       const payment = await this.paymentClient.getPayment({
@@ -36,7 +36,7 @@ export class PaymentsService {
           phone: dto.phone,
           email: dto.email,
           otherText: dto.otherText ?? null,
-          userId: BigInt(dto.userId), 
+          userId,
         },
       });
 

@@ -36,7 +36,7 @@ export class PaymentsService {
           phone: dto.phone,
           email: dto.email,
           otherText: dto.otherText ?? null,
-          userId: dto.userId,
+          userId: BigInt(dto.userId), 
         },
       });
 

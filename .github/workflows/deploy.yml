@@ -18,7 +18,7 @@ jobs:
         with:
           host: 43.202.183.151           
           username: ubuntu               
-          key: ${{ secrets.niz-secret }}
+          key: ${{ secrets.niz_secret }}
           script: |
             cd ~/niz-back
             git pull origin main

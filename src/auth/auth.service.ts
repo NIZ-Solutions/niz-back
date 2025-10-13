@@ -27,7 +27,7 @@ export class AuthService {
 
   // 회원가입 (토큰 포함)
   async signup(dto: SignupDto): Promise<SignupResponseDto> {
-    if (!dto.privacyPolicy) {
+    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy) {
       throw new BadRequestException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
     }
 
@@ -41,6 +41,8 @@ export class AuthService {
           name: dto.name,
           phone: dto.phone,
           privacyPolicy: dto.privacyPolicy,
+          termsOfService: dto.termsOfService,
+          paymentPolicy: dto.paymentPolicy,
         },
       });
 

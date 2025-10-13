@@ -1,11 +1,11 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Body, 
-  UseGuards, 
-  Req, 
-  HttpCode 
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Req,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -25,6 +25,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiBearerAuth,
+  ApiBody,
 } from '@nestjs/swagger';
 
 @ApiTags('Auth')
@@ -35,7 +36,21 @@ export class AuthController {
   // 회원가입
   @Public()
   @Post('signup')
-  @ApiOperation({ summary: '회원가입 (토큰 포함)' })
+  @ApiOperation({ summary: '회원가입 (모든 약관 동의 필요)' })
+  @ApiBody({
+    description: '회원가입 요청 DTO',
+    schema: {
+      example: {
+        userId: 'niz123',
+        password: '12345678',
+        name: '홍길동',
+        phone: '01012345678',
+        privacyPolicy: true,
+        termsOfService: true,
+        paymentPolicy: true,
+      },
+    },
+  })
   @ApiCreatedResponse({
     description: '회원가입 성공',
     schema: {
@@ -62,6 +77,15 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @ApiOperation({ summary: '로그인' })
+  @ApiBody({
+    description: '로그인 요청 DTO',
+    schema: {
+      example: {
+        userId: 'niz123',
+        password: '12345678',
+      },
+    },
+  })
   @ApiOkResponse({
     description: '로그인 성공',
     schema: {
@@ -88,6 +112,14 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   @ApiOperation({ summary: '토큰 재발급' })
+  @ApiBody({
+    description: '리프레시 토큰을 전달하여 새 토큰을 발급받음',
+    schema: {
+      example: {
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+    },
+  })
   @ApiOkResponse({
     description: '재발급 성공',
     schema: {
@@ -137,6 +169,14 @@ export class AuthController {
   @HttpCode(200)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: '로그아웃' })
+  @ApiBody({
+    description: '로그아웃 요청 DTO',
+    schema: {
+      example: {
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+    },
+  })
   @ApiOkResponse({
     description: '로그아웃 성공',
     schema: {
@@ -148,8 +188,11 @@ export class AuthController {
       },
     },
   })
-  async logout(@Req() req, @Body() dto: LogoutDto) {
+  async logout(@Req() req, @Body() dto: LogoutDto): Promise<LogoutResponseDto> {
     await this.authService.logout(req.user.id, dto.refreshToken);
-    return { message: '로그아웃 되었습니다.' };
+    return {
+      success: true,
+      message: '로그아웃 되었습니다.',
+    };
   }
 }

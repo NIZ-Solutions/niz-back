@@ -136,20 +136,28 @@ export class AuthController {
     return this.authService.refreshToken(dto.refreshToken);
   }
 
-  // 카카오 로그인 콜백
+   // 카카오 로그인
   @Public()
-  @UseGuards(KakaoAuthGuard)
-  @Get('kakao/redirect')
-  @ApiOperation({ summary: '카카오 로그인 콜백' })
+  @Post('kakao')
+  @HttpCode(200)
+  @ApiOperation({ summary: '카카오 로그인' })
+  @ApiBody({
+    description: '카카오 인가 코드 전달',
+    schema: {
+      example: {
+        code: '0QzZw89U5s12kFYVvYv2vQftr7YwzKqQW3qrvzI6XbGzFb3m1w',
+      },
+    },
+  })
   @ApiOkResponse({
-    description: '카카오 로그인 성공',
+    description: '카카오 로그인 / 회원가입 성공',
     schema: {
       example: {
         success: true,
         data: {
           id: '15',
           userId: 'kakao_987654321',
-          name: '카카오사용자',
+          name: '홍길동',
           phone: '',
           createdAt: '2025-10-13T07:00:00.000Z',
           accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
@@ -158,9 +166,8 @@ export class AuthController {
       },
     },
   })
-  async kakaoCallback(@Req() req): Promise<LoginResponseDto> {
-    const user = await this.authService.validateKakaoUser(req.user);
-    return this.authService.kakaoLogin(user);
+  async kakaoLogin(@Body('code') code: string): Promise<LoginResponseDto> {
+    return this.authService.kakaoLoginByCode(code);
   }
 
   // 로그아웃

@@ -50,9 +50,7 @@ export class AuthService {
     private readonly httpService: HttpService,
   ) {}
 
-  // ==============================
-  // 회원가입 (JWT 발급 포함)
-  // ==============================
+  // 회원가입
   async signup(dto: SignupDto): Promise<SignupResponseDto> {
     if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy) {
       throw new BadRequestException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
@@ -60,7 +58,6 @@ export class AuthService {
 
     try {
       const passwordHash = await bcrypt.hash(dto.password, 10);
-
       const user = await this.prisma.user.create({
         data: {
           userId: dto.userId,
@@ -96,9 +93,7 @@ export class AuthService {
     }
   }
 
-  // ==============================
   // 일반 로그인
-  // ==============================
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { userId: dto.userId } });
     if (!user) throw new UnauthorizedException('아이디가 올바르지 않습니다.');
@@ -111,12 +106,9 @@ export class AuthService {
     return this.issueLoginTokens(user);
   }
 
-  // ==============================
   // 카카오 로그인 (인가 코드 기반)
-  // ==============================
   async kakaoLoginByCode(code: string): Promise<LoginResponseDto> {
     try {
-      // 1. 인가 코드로 토큰 발급
       const tokenRes = await firstValueFrom(
         this.httpService.post<KakaoTokenResponse>(
           'https://kauth.kakao.com/oauth/token',
@@ -134,7 +126,6 @@ export class AuthService {
       const accessToken = tokenRes.data.access_token;
       if (!accessToken) throw new UnauthorizedException('카카오 토큰 발급 실패');
 
-      // 2. 사용자 정보 조회
       const userRes = await firstValueFrom(
         this.httpService.get<KakaoUserResponse>('https://kapi.kakao.com/v2/user/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -143,9 +134,7 @@ export class AuthService {
 
       const kakaoId = String(userRes.data.id);
       const kakaoProfile = userRes.data.kakao_account?.profile;
-      const kakaoEmail = userRes.data.kakao_account?.email ?? '';
 
-      // 3. 기존 회원 여부 확인
       const existingAuth = await this.prisma.userAuth.findUnique({
         where: { providerId: kakaoId },
         include: { user: true },
@@ -155,7 +144,6 @@ export class AuthService {
       if (existingAuth) {
         user = existingAuth.user;
       } else {
-        // 4. 신규 회원 생성
         user = await this.prisma.user.create({
           data: {
             userId: `kakao_${kakaoId}`,
@@ -174,7 +162,6 @@ export class AuthService {
         });
       }
 
-      // 5. JWT 발급
       const payload = { sub: user.id.toString(), userId: user.userId };
       const newAccessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
       const newRefreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
@@ -195,20 +182,20 @@ export class AuthService {
     }
   }
 
-  // ==============================
-  // Refresh Token 재발급
-  // ==============================
+  // Refresh Token 재발급 (만료 구분 포함)
   async refreshToken(token: string): Promise<RefreshResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
-      const userId = BigInt(payload.sub);
 
+      const userId = BigInt(payload.sub);
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
       const stored = await this.prisma.refreshToken.findFirst({
         where: { userId, tokenHash, revoked: false },
       });
+
       if (!stored || stored.expiresAt < new Date()) {
         throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
       }
@@ -222,15 +209,15 @@ export class AuthService {
       if (!user) throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
 
       return this.issueRefreshTokens(user);
-    } catch (err) {
-      this.logger.error('Refresh Token 검증 실패', err);
-      throw new UnauthorizedException('Refresh Token 검증 실패');
+    } catch (err: any) {
+      if (err.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh Token이 만료되었습니다.');
+      }
+      throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
     }
   }
 
-  // ==============================
   // 로그아웃
-  // ==============================
   async logout(userId: string, refreshToken: string): Promise<LogoutResponseDto> {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await this.prisma.refreshToken.updateMany({
@@ -240,16 +227,12 @@ export class AuthService {
     return { success: true, message: '로그아웃 되었습니다.' };
   }
 
-  // ==============================
-  // 내부 공통 메서드
-  // ==============================
+  // 내부 메서드
   private async issueLoginTokens(user: any): Promise<LoginResponseDto> {
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
-
     await this.saveRefreshToken(user.id, refreshToken);
-
     return {
       id: user.id.toString(),
       userId: user.userId,
@@ -265,9 +248,7 @@ export class AuthService {
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
     const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
-
     await this.saveRefreshToken(user.id, refreshToken);
-
     return { accessToken, refreshToken };
   }
 

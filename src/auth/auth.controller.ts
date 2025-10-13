@@ -6,6 +6,7 @@ import {
   UseGuards,
   Req,
   HttpCode,
+  Query
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -82,7 +83,7 @@ export class AuthController {
     schema: {
       example: {
         userId: 'niz123',
-        password: '12345678',
+        password: 'password123!',
       },
     },
   })
@@ -167,6 +168,13 @@ export class AuthController {
     },
   })
   async kakaoLogin(@Body('code') code: string): Promise<LoginResponseDto> {
+    return this.authService.kakaoLoginByCode(code);
+  }
+   
+  // 카카오 리다이렉트
+  @Public()
+  @Get('kakao/redirect')
+  async kakaoRedirect(@Query('code') code: string) {
     return this.authService.kakaoLoginByCode(code);
   }
 

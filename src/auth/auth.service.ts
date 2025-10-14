@@ -185,6 +185,7 @@ export class AuthService {
   // Refresh Token 재발급 (만료 구분 포함)
   async refreshToken(token: string): Promise<RefreshResponseDto> {
     try {
+      // 1. verify 단계에서 만료 or 위조 여부 감지
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
@@ -192,28 +193,50 @@ export class AuthService {
       const userId = BigInt(payload.sub);
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
+      // 2. DB에 저장된 토큰 확인
       const stored = await this.prisma.refreshToken.findFirst({
         where: { userId, tokenHash, revoked: false },
       });
 
-      if (!stored || stored.expiresAt < new Date()) {
-        throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
+      // 3. DB에 없는 경우 → 위조 또는 이미 폐기
+      if (!stored) {
+        throw new UnauthorizedException('INVALID'); // 위조 or 이미 무효
       }
 
+      // 4. 만료된 경우
+      if (stored.expiresAt < new Date()) {
+        // 만료된 토큰은 revoke 처리
+        await this.prisma.refreshToken.update({
+          where: { id: stored.id },
+          data: { revoked: true },
+        });
+        throw new UnauthorizedException('EXPIRED'); // 명확히 구분
+      }
+
+      // 5. 정상 → 기존 토큰 revoke, 새 토큰 발급
       await this.prisma.refreshToken.update({
         where: { id: stored.id },
         data: { revoked: true },
       });
 
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (!user) throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+      if (!user) throw new UnauthorizedException('USER_NOT_FOUND');
 
       return this.issueRefreshTokens(user);
     } catch (err: any) {
+      // JWT 자체 만료
       if (err.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Refresh Token이 만료되었습니다.');
+        throw new UnauthorizedException('EXPIRED');
       }
-      throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
+      // JWT 위조, 파싱 실패
+      if (err.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('INVALID');
+      }
+      // 위에서 커스텀으로 던진 코드 그대로 전달
+      if (err instanceof UnauthorizedException) throw err;
+
+      // 예외 케이스
+      throw new UnauthorizedException('UNKNOWN');
     }
   }
 

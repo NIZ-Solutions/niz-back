@@ -96,12 +96,12 @@ export class AuthService {
   // 일반 로그인
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { userId: dto.userId } });
-    if (!user) throw new UnauthorizedException('아이디가 올바르지 않습니다.');
+    if (!user) throw new BadRequestException('아이디가 올바르지 않습니다.');
     if (!user.passwordHash)
-      throw new UnauthorizedException('비밀번호 로그인 불가 계정입니다.');
+      throw new BadRequestException('비밀번호 로그인 불가 계정입니다.');
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isPasswordValid) throw new UnauthorizedException('비밀번호가 올바르지 않습니다.');
+    if (!isPasswordValid) throw new BadRequestException('비밀번호가 올바르지 않습니다.');
 
     return this.issueLoginTokens(user);
   }

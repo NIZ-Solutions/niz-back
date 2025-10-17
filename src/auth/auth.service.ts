@@ -18,9 +18,6 @@ import * as crypto from 'crypto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-// ==============================
-// Kakao API Response Interfaces
-// ==============================
 interface KakaoTokenResponse {
   access_token: string;
   token_type: string;
@@ -50,11 +47,9 @@ export class AuthService {
     private readonly httpService: HttpService,
   ) {}
 
-  // 회원가입
   async signup(dto: SignupDto): Promise<SignupResponseDto> {
-    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy) {
+    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy)
       throw new BadRequestException('필수 약관에 모두 동의해야 회원가입이 가능합니다.');
-    }
 
     try {
       const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -70,20 +65,7 @@ export class AuthService {
         },
       });
 
-      const payload = { sub: user.id.toString(), userId: user.userId };
-      const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
-      const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
-      await this.saveRefreshToken(user.id, refreshToken);
-
-      return {
-        id: user.id.toString(),
-        userId: user.userId,
-        name: user.name,
-        phone: user.phone,
-        createdAt: user.createdAt,
-        accessToken,
-        refreshToken,
-      };
+      return this.issueLoginTokens(user);
     } catch (err: any) {
       if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
         throw new ConflictException('이미 존재하는 아이디입니다.');
@@ -93,7 +75,6 @@ export class AuthService {
     }
   }
 
-  // 일반 로그인
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { userId: dto.userId } });
     if (!user) throw new UnauthorizedException('아이디가 올바르지 않습니다.');
@@ -106,16 +87,10 @@ export class AuthService {
     return this.issueLoginTokens(user);
   }
 
-  // 카카오 로그인 (인가 코드 기반)
   async kakaoLoginByCode(code: string): Promise<LoginResponseDto> {
     console.log('KAKAO_REDIRECT_URI:', process.env.KAKAO_REDIRECT_URI);
+
     try {
-        this.logger.debug('Kakao OAuth Request Params', {
-        client_id: process.env.KAKAO_CLIENT_ID,
-        redirect_uri: process.env.KAKAO_REDIRECT_URI,
-        code,
-        client_secret: process.env.KAKAO_CLIENT_SECRET ? 'exists' : 'missing',
-      });
       const tokenRes = await firstValueFrom(
         this.httpService.post<KakaoTokenResponse>(
           'https://kauth.kakao.com/oauth/token',
@@ -149,47 +124,44 @@ export class AuthService {
 
       let user;
       if (existingAuth) {
+        // 이미 연결된 kakao 계정 -> 로그인 처리
         user = existingAuth.user;
       } else {
-        user = await this.prisma.user.create({
-          data: {
-            userId: `kakao_${kakaoId}`,
-            name: kakaoProfile?.nickname ?? '카카오사용자',
-            phone: '',
-            privacyPolicy: true,
-            termsOfService: true,
-            paymentPolicy: true,
-            auths: {
-              create: {
-                provider: 'kakao',
-                providerId: kakaoId,
+        // 혹시 동일 userId 존재 시 기존 유저 사용
+        const existingUser = await this.prisma.user.findUnique({
+          where: { userId: `kakao_${kakaoId}` },
+        });
+
+        if (existingUser) {
+          user = existingUser;
+        } else {
+          // 완전 신규 카카오 유저 -> 회원가입 처리
+          user = await this.prisma.user.create({
+            data: {
+              userId: `kakao_${kakaoId}`,
+              name: kakaoProfile?.nickname ?? '카카오사용자',
+              phone: '',
+              privacyPolicy: true,
+              termsOfService: true,
+              paymentPolicy: true,
+              auths: {
+                create: {
+                  provider: 'kakao',
+                  providerId: kakaoId,
+                },
               },
             },
-          },
-        });
+          });
+        }
       }
 
-      const payload = { sub: user.id.toString(), userId: user.userId };
-      const newAccessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
-      const newRefreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
-      await this.saveRefreshToken(user.id, newRefreshToken);
-
-      return {
-        id: user.id.toString(),
-        userId: user.userId,
-        name: user.name,
-        phone: user.phone,
-        createdAt: user.createdAt,
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      };
+      return this.issueLoginTokens(user);
     } catch (error) {
       this.logger.error('카카오 로그인 실패', error);
       throw new UnauthorizedException('카카오 로그인 처리 중 오류가 발생했습니다.');
     }
   }
 
-  // Refresh Token 재발급 (만료 구분 포함)
   async refreshToken(token: string): Promise<RefreshResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync(token, {
@@ -203,9 +175,8 @@ export class AuthService {
         where: { userId, tokenHash, revoked: false },
       });
 
-      if (!stored || stored.expiresAt < new Date()) {
+      if (!stored || stored.expiresAt < new Date())
         throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
-      }
 
       await this.prisma.refreshToken.update({
         where: { id: stored.id },
@@ -217,14 +188,12 @@ export class AuthService {
 
       return this.issueRefreshTokens(user);
     } catch (err: any) {
-      if (err.name === 'TokenExpiredError') {
+      if (err.name === 'TokenExpiredError')
         throw new UnauthorizedException('Refresh Token이 만료되었습니다.');
-      }
       throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
     }
   }
 
-  // 로그아웃
   async logout(userId: string, refreshToken: string): Promise<LogoutResponseDto> {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await this.prisma.refreshToken.updateMany({
@@ -234,7 +203,6 @@ export class AuthService {
     return { success: true, message: '로그아웃 되었습니다.' };
   }
 
-  // 내부 메서드
   private async issueLoginTokens(user: any): Promise<LoginResponseDto> {
     const payload = { sub: user.id.toString(), userId: user.userId };
     const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });

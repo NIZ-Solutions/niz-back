@@ -171,12 +171,12 @@ export class AuthController {
     return this.authService.kakaoLoginByCode(code);
   }
    
-  // 카카오 리다이렉트
-  @Public()
-  @Get('kakao/redirect')
-  async kakaoRedirect(@Query('code') code: string) {
-    return this.authService.kakaoLoginByCode(code);
-  }
+  // // 카카오 리다이렉트
+  // @Public()
+  // @Get('kakao/redirect')
+  // async kakaoRedirect(@Query('code') code: string) {
+  //   return this.authService.kakaoLoginByCode(code);
+  // }
 
   // 로그아웃
   @UseGuards(JwtAuthGuard)

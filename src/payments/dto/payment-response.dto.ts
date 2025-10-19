@@ -16,7 +16,10 @@ export class PaymentResponseDto {
   @ApiProperty({ description: '결제 상태', example: 'PAID' })
   status: string;
 
-  @ApiProperty({ description: '예약 일시', example: '2025-10-20T15:00:00.000Z' })
+  @ApiProperty({
+    description: '예약 일시',
+    example: '2025-10-20T15:00:00.000Z',
+  })
   advicedAt: Date;
 
   @ApiProperty({ description: '구매자 이름', example: '홍길동' })
@@ -28,7 +31,11 @@ export class PaymentResponseDto {
   @ApiProperty({ description: '구매자 이메일', example: 'user@example.com' })
   email: string;
 
-  @ApiProperty({ description: '추가 요청사항', example: '추가 요청사항입니다.', required: false })
+  @ApiProperty({
+    description: '추가 요청사항',
+    example: '추가 요청사항입니다.',
+    required: false,
+  })
   otherText?: string;
 
   @ApiProperty({ description: '생성일시', example: '2025-10-07T12:34:56.000Z' })

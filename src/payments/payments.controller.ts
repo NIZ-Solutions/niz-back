@@ -63,7 +63,7 @@ export class PaymentsController {
     //   throw new InternalServerErrorException('결제 처리 중 서버 오류가 발생했습니다.');
     // }
 
-    // 위에있는 catch가 오류를 단순한 500으로 내뱉게끔 하고 있어서 
+    // 위에있는 catch가 오류를 단순한 500으로 내뱉게끔 하고 있어서
     // 이렇게 수정해주시면 감사하겠습니다.
     // 결제 취소도 추후에 테스트후에 그냥 return문으로 수정해주세요.
     return this.paymentsService.completePayment(dto, userId);
@@ -88,7 +88,9 @@ export class PaymentsController {
       return await this.paymentsService.cancelPayment(dto.paymentId);
     } catch (error) {
       this.logger.error('결제 취소 처리 중 오류 발생', error);
-      throw new InternalServerErrorException('결제 취소 중 서버 오류가 발생했습니다.');
+      throw new InternalServerErrorException(
+        '결제 취소 중 서버 오류가 발생했습니다.',
+      );
     }
   }
 }

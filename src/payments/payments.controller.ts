@@ -10,14 +10,13 @@ import {
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CancelPaymentDto } from './dto/cancel-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import {
   ApiOperation,
   ApiTags,
   ApiCreatedResponse,
-  ApiBadRequestResponse,
-  ApiConflictResponse,
-  ApiInternalServerErrorResponse,
+  ApiOkResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,76 +28,24 @@ export class PaymentsController {
 
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  // 결제 완료
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Post('complete')
   @ApiOperation({ summary: '카드 결제 완료 처리' })
   @ApiCreatedResponse({
-    description: '결제 완료 성공',
-    schema: {
-      example: {
-        success: true,
-        data: {
-          id: '1',
-          paymentId: 'pay_1234567890',
-          userId: '1',
-          amount: 10000,
-          status: 'PAID',
-          advicedAt: '2025-10-20T15:00:00.000Z',
-          name: '홍길동',
-          phone: '01012345678',
-          email: 'user@example.com',
-          otherText: '추가 요청사항입니다.',
-          createdAt: '2025-10-07T12:34:56.000Z',
-        },
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description: '잘못된 요청 (인증 정보 누락, 잘못된 ID, 결제 정보 불완전 등)',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: '결제 정보가 불완전합니다.',
-        error: 'Bad Request',
-      },
-    },
-  })
-  @ApiConflictResponse({
-    description: '중복 결제 시도 (이미 처리된 결제)',
-    schema: {
-      example: {
-        statusCode: 409,
-        message: '이미 처리된 결제입니다.',
-        error: 'Conflict',
-      },
-    },
-  })
-  @ApiInternalServerErrorResponse({
-    description: '서버 내부 오류',
-    schema: {
-      example: {
-        statusCode: 500,
-        message: '결제 처리 중 서버 오류가 발생했습니다.',
-        error: 'Internal Server Error',
-      },
-    },
+    description: '결제 완료',
+    type: PaymentResponseDto,
   })
   async complete(
     @Body() dto: CreatePaymentDto,
     @Req() req,
   ): Promise<PaymentResponseDto> {
-    this.logger.log('Payment complete request', {
-      body: dto,
-      user: req.user,
-    });
+    this.logger.log('Payment complete request', { body: dto, user: req.user });
 
-    // 1. 인증 정보 확인
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id)
       throw new BadRequestException('인증 정보가 누락되었습니다.');
-    }
 
-    // 2. BigInt 변환 방어
     let userId: bigint;
     try {
       userId = BigInt(req.user.id);
@@ -106,18 +53,35 @@ export class PaymentsController {
       throw new BadRequestException('잘못된 사용자 ID 형식입니다.');
     }
 
-    // 3. 요청 데이터 검증
-    if (!dto || !dto.paymentId) {
+    if (!dto?.paymentId)
       throw new BadRequestException('결제 정보가 불완전합니다.');
-    }
 
-    // 4. 실제 결제 완료 처리
     try {
-      const result = await this.paymentsService.completePayment(dto, userId);
-      return result;
+      return await this.paymentsService.completePayment(dto, userId);
     } catch (error) {
       this.logger.error('결제 완료 처리 중 오류 발생', error);
       throw new InternalServerErrorException('결제 처리 중 서버 오류가 발생했습니다.');
+    }
+  }
+
+  // 결제 취소
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @Post('cancel')
+  @ApiOperation({ summary: '결제 취소 처리' })
+  @ApiOkResponse({
+    description: '결제 취소 완료',
+    type: PaymentResponseDto,
+  })
+  async cancel(@Body() dto: CancelPaymentDto): Promise<PaymentResponseDto> {
+    if (!dto.paymentId)
+      throw new BadRequestException('paymentId가 필요합니다.');
+
+    try {
+      return await this.paymentsService.cancelPayment(dto.paymentId);
+    } catch (error) {
+      this.logger.error('결제 취소 처리 중 오류 발생', error);
+      throw new InternalServerErrorException('결제 취소 중 서버 오류가 발생했습니다.');
     }
   }
 }

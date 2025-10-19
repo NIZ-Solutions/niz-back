@@ -15,6 +15,9 @@ import {
   ApiOperation,
   ApiTags,
   ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiConflictResponse,
+  ApiInternalServerErrorResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -31,7 +34,7 @@ export class PaymentsController {
   @Post('complete')
   @ApiOperation({ summary: '카드 결제 완료 처리' })
   @ApiCreatedResponse({
-    description: '결제 완료',
+    description: '결제 완료 성공',
     schema: {
       example: {
         success: true,
@@ -48,6 +51,36 @@ export class PaymentsController {
           otherText: '추가 요청사항입니다.',
           createdAt: '2025-10-07T12:34:56.000Z',
         },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: '잘못된 요청 (인증 정보 누락, 잘못된 ID, 결제 정보 불완전 등)',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: '결제 정보가 불완전합니다.',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiConflictResponse({
+    description: '중복 결제 시도 (이미 처리된 결제)',
+    schema: {
+      example: {
+        statusCode: 409,
+        message: '이미 처리된 결제입니다.',
+        error: 'Conflict',
+      },
+    },
+  })
+  @ApiInternalServerErrorResponse({
+    description: '서버 내부 오류',
+    schema: {
+      example: {
+        statusCode: 500,
+        message: '결제 처리 중 서버 오류가 발생했습니다.',
+        error: 'Internal Server Error',
       },
     },
   })

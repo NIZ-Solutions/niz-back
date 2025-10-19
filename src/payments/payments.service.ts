@@ -69,6 +69,13 @@ export class PaymentsService {
         createdAt: saved.createdAt,
       };
     } catch (err: any) {
+      console.error('==== 결제 오류 상세 ====');
+      console.error('code:', err?.code);
+      console.error('message:', err?.message);
+      console.error('meta:', err?.meta);
+      console.error('response data:', err?.response?.data);
+      console.error('=======================');
+
       if (err.data?.type === 'PAYMENT_NOT_FOUND') {
         throw new BadRequestException('결제 건을 찾을 수 없습니다.');
       }

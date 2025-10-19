@@ -23,6 +23,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Payments')
 @Controller('payments')
+
+type AuthedRequest = Request & {
+  user?: { id: string; [k: string]: unknown };
+};
+
 export class PaymentsController {
   private readonly logger = new Logger(PaymentsController.name);
 
@@ -37,9 +42,10 @@ export class PaymentsController {
     description: '결제 완료',
     type: PaymentResponseDto,
   })
+  
   async complete(
     @Body() dto: CreatePaymentDto,
-    @Req() req,
+    @Req() req: AuthedRequest,
   ): Promise<PaymentResponseDto> {
     this.logger.log('Payment complete request', { body: dto, user: req.user });
 

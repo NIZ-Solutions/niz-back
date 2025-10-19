@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { PaymentClient } from '@portone/server-sdk';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -6,7 +11,8 @@ import { PaymentResponseDto } from './dto/payment-response.dto';
 
 @Injectable()
 export class PaymentsService {
-  private readonly paymentClient;
+  private readonly logger = new Logger(PaymentsService.name);
+  private readonly paymentClient: PaymentClient;
 
   constructor(private prisma: PrismaService) {
     this.paymentClient = PaymentClient({
@@ -14,12 +20,19 @@ export class PaymentsService {
     });
   }
 
-  async completePayment(dto: CreatePaymentDto, userId: bigint): Promise<PaymentResponseDto> {
+  async completePayment(
+    dto: CreatePaymentDto,
+    userId: bigint,
+  ): Promise<PaymentResponseDto> {
     try {
       // 1. PortOne API 검증
       const payment = await this.paymentClient.getPayment({
         paymentId: dto.paymentId,
       });
+
+      if (!payment) {
+        throw new BadRequestException('결제 정보를 불러올 수 없습니다.');
+      }
 
       if (payment.status !== 'PAID') {
         throw new BadRequestException('결제가 완료되지 않았습니다.');
@@ -31,7 +44,7 @@ export class PaymentsService {
           paymentId: dto.paymentId,
           amount: payment.amount.total,
           status: payment.status,
-          advicedAt: new Date(dto.advicedAt),
+          advicedAt: new Date(dto.advicedAt ?? Date.now()),
           name: dto.name,
           phone: dto.phone,
           email: dto.email,
@@ -58,7 +71,9 @@ export class PaymentsService {
       if (err.data?.type === 'PAYMENT_NOT_FOUND') {
         throw new BadRequestException('결제 건을 찾을 수 없습니다.');
       }
-      throw err;
+
+      this.logger.error('결제 완료 처리 중 오류', err);
+      throw new InternalServerErrorException('결제 처리 중 서버 오류가 발생했습니다.');
     }
   }
 }

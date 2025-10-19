@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
@@ -70,6 +71,10 @@ export class PaymentsService {
     } catch (err: any) {
       if (err.data?.type === 'PAYMENT_NOT_FOUND') {
         throw new BadRequestException('결제 건을 찾을 수 없습니다.');
+      }
+
+      if (err.code === 'P2002' && err.meta?.target?.includes('paymentId')) {
+        throw new ConflictException('이미 처리된 결제입니다.');
       }
 
       this.logger.error('결제 완료 처리 중 오류', err);

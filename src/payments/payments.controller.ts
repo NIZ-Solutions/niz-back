@@ -84,4 +84,26 @@ export class PaymentsController {
       throw new InternalServerErrorException('결제 취소 중 서버 오류가 발생했습니다.');
     }
   }
+
+  // 포트원 Webhook (자동 승인 통보용)
+  @Post('webhook')
+  @ApiOperation({ summary: '포트원 결제 Webhook 수신' })
+  async handleWebhook(@Body() payload: any) {
+    this.logger.log('📩 포트원 Webhook 수신', payload);
+
+    try {
+      const { imp_uid, merchant_uid, status } = payload;
+
+      if (!imp_uid || !merchant_uid || !status) {
+        throw new BadRequestException('필수 파라미터가 누락되었습니다.');
+      }
+
+      await this.paymentsService.handleWebhook(imp_uid, merchant_uid, status);
+      this.logger.log(`Webhook 처리 완료: ${merchant_uid} (${status})`);
+      return { success: true };
+    } catch (err) {
+      this.logger.error('Webhook 처리 실패', err);
+      return { success: false, error: err.message };
+    }
+  }
 }

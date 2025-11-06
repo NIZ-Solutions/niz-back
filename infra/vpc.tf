@@ -18,14 +18,6 @@ resource "aws_subnet" "private_a" {
   tags = { Name = "niz-private-a" }
 }
 
-
-resource "aws_subnet" "private_c" {
-  vpc_id            = aws_vpc.niz_vpc.id
-  cidr_block        = "10.0.3.0/24"
-  availability_zone = "ap-northeast-2c"
-  tags = { Name = "niz-private-c" }
-}
-
 resource "aws_internet_gateway" "niz_igw" {
   vpc_id = aws_vpc.niz_vpc.id
   tags   = { Name = "niz-igw" }

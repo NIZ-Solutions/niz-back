@@ -1,9 +1,5 @@
-output "ec2_public_ip" {
-  value = aws_eip.niz_eip.public_ip
-}
-
-output "rds_endpoint" {
-  value = aws_db_instance.niz_rds.address
+output "nat_public_ip" {
+  value = aws_eip.nat_eip.public_ip
 }
 
 output "vpc_id" {

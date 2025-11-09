@@ -13,21 +13,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy via NAT EC2 to private EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: 3.38.108.91
           username: ec2-user
           key: ${{ secrets.NIZ_KEY }}
           script: |
-            source ~/.bashrc
-            export PATH=$PATH:/home/ec2-user/.nvm/versions/node/v24.11.0/bin
-
-            cd /home/ec2-user/niz-back || exit 1
-
-            git pull origin main
-            npm install
-            npm run build
-
-            pm2 restart niz-back || pm2 start dist/main.js --name niz-back
-            pm2 save
+            ssh -i ~/niz-keypair.pem ec2-user@10.0.135.238 << 'EOF'
+              cd ~/niz-back
+              git pull origin main
+              npm install
+              npm run build
+              pm2 restart niz-back || pm2 start dist/main.js --name niz-back
+              pm2 save
+            EOF

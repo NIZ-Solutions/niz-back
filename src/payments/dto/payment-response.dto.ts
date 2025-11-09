@@ -28,9 +28,16 @@ export class PaymentResponseDto {
   @ApiProperty({ description: '구매자 이메일', example: 'user@example.com' })
   email: string;
 
-  @ApiProperty({ description: '추가 요청사항', example: '추가 요청사항입니다.', required: false })
+  @ApiProperty({
+    description: '추가 요청사항',
+    example: '추가 요청사항입니다.',
+    required: false,
+  })
   otherText?: string;
 
-  @ApiProperty({ description: '생성일시', example: '2025-10-07T12:34:56.000Z' })
+  @ApiProperty({
+    description: '생성일시',
+    example: '2025-10-07T12:34:56.000Z',
+  })
   createdAt: Date;
 }

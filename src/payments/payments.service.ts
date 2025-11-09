@@ -21,7 +21,7 @@ export class PaymentsService {
     });
   }
 
-  // 결제 완료 처리
+  // ✅ (1) 결제 완료 처리 (PC)
   async completePayment(
     dto: CreatePaymentDto,
     userId: bigint,
@@ -36,8 +36,7 @@ export class PaymentsService {
       if (payment.status !== 'PAID')
         throw new BadRequestException('결제가 완료되지 않았습니다.');
 
-      // 결제 응답 로깅
-      this.logger.log('💳 PortOne 결제 응답', {
+      this.logger.log('💳 포트원 결제 응답', {
         paymentId: payment.id,
         orderName: payment.orderName,
         amount: payment.amount?.total,
@@ -60,25 +59,49 @@ export class PaymentsService {
 
       return this.formatResponse(saved);
     } catch (err: any) {
-      console.error('==== 결제 오류 상세 ====');
-      console.error('code:', err?.code);
-      console.error('message:', err?.message);
-      console.error('meta:', err?.meta);
-      console.error('response data:', err?.response?.data);
-      console.error('=======================');
-
+      this.logger.error('❌ 결제 완료 처리 중 오류', err);
       if (err.data?.type === 'PAYMENT_NOT_FOUND')
         throw new BadRequestException('결제 건을 찾을 수 없습니다.');
-
       if (err.code === 'P2002' && err.meta?.target?.includes('paymentId'))
         throw new ConflictException('이미 처리된 결제입니다.');
-
-      this.logger.error('결제 완료 처리 중 오류', err);
       throw new InternalServerErrorException('결제 처리 중 서버 오류가 발생했습니다.');
     }
   }
 
-  // 결제 취소 처리
+  // ✅ (2) 결제 검증 (모바일 리디렉션)
+  async verifyPayment(paymentId: string): Promise<PaymentResponseDto> {
+    try {
+      const payment: any = await this.paymentClient.getPayment({ paymentId });
+
+      if (!payment)
+        throw new BadRequestException('결제 정보를 불러올 수 없습니다.');
+
+      this.logger.log('🔍 결제 검증 결과', {
+        paymentId,
+        status: payment.status,
+        amount: payment.amount?.total,
+      });
+
+      return {
+        id: '0',
+        paymentId: payment.id,
+        userId: payment.customer?.id?.toString() ?? '0',
+        amount: payment.amount?.total ?? 0,
+        status: payment.status,
+        advicedAt: new Date(),
+        name: payment.orderName ?? 'NIZ',
+        phone: payment.customer?.phone ?? '',
+        email: payment.customer?.email ?? '',
+        otherText: undefined,
+        createdAt: new Date(),
+      };
+    } catch (err) {
+      this.logger.error('❌ 결제 검증 중 오류', err);
+      throw new InternalServerErrorException('결제 검증 중 서버 오류가 발생했습니다.');
+    }
+  }
+
+  // ✅ (3) 결제 취소
   async cancelPayment(paymentId: string): Promise<PaymentResponseDto> {
     try {
       const payment: any = await this.paymentClient.getPayment({ paymentId });
@@ -94,13 +117,13 @@ export class PaymentsService {
       });
 
       return this.formatResponse(updated);
-    } catch (err: any) {
-      this.logger.error('결제 취소 처리 중 오류', err);
+    } catch (err) {
+      this.logger.error('❌ 결제 취소 처리 중 오류', err);
       throw new InternalServerErrorException('결제 취소 중 서버 오류가 발생했습니다.');
     }
   }
 
-  // Webhook 처리 (모바일 결제용)
+  // ✅ (4) Webhook 처리
   async handleWebhook(
     impUid: string,
     merchantUid: string,
@@ -112,14 +135,8 @@ export class PaymentsService {
 
     try {
       const payment: any = await this.paymentClient.getPayment({ paymentId: impUid });
-      if (!payment) {
+      if (!payment)
         throw new BadRequestException('포트원 결제 내역을 불러올 수 없습니다.');
-      }
-
-      // 필수 데이터 검증
-      if (!payment.status || !payment.amount?.total) {
-        throw new BadRequestException('결제 응답 데이터가 올바르지 않습니다.');
-      }
 
       const existing = await this.prisma.payment.findUnique({
         where: { paymentId: impUid },
@@ -136,7 +153,7 @@ export class PaymentsService {
             phone: payment.customer?.phone ?? '',
             email: payment.customer?.email ?? '',
             otherText: null,
-            userId: BigInt(payment.customer?.id ?? 0), // 실제 유저 ID 매핑 필요
+            userId: BigInt(payment.customer?.id ?? 0),
           },
         });
         this.logger.log(`신규 결제 생성 (${impUid})`);
@@ -147,13 +164,13 @@ export class PaymentsService {
         });
         this.logger.log(`기존 결제 상태 업데이트 (${impUid})`);
       }
-    } catch (err: any) {
-      this.logger.error('Webhook 처리 중 오류', err);
+    } catch (err) {
+      this.logger.error('❌ Webhook 처리 중 오류', err);
       throw new InternalServerErrorException('Webhook 처리 중 서버 오류가 발생했습니다.');
     }
   }
 
-  // 공통 DTO 포맷터
+  // ✅ 공통 응답 DTO 포맷터
   private formatResponse(p: any): PaymentResponseDto {
     return {
       id: p.id.toString(),

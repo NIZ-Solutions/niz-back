@@ -16,9 +16,9 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 43.202.183.151           
-          username: ubuntu               
-          key: ${{ secrets.niz_secret }}
+          host: 3.38.108.91          
+          username: ec2-user          
+          key: ${{ secrets.NIZ_KEY }} 
           script: |
             cd ~/niz-back
             git pull origin main

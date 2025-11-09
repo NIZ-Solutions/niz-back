@@ -16,21 +16,18 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 3.38.108.91            
+          host: 3.38.108.91
           username: ec2-user
           key: ${{ secrets.NIZ_KEY }}
           script: |
-            export NVM_DIR="/home/ec2-user/.nvm"
-            source "$NVM_DIR/nvm.sh"
+            source ~/.bashrc
             export PATH=$PATH:/home/ec2-user/.nvm/versions/node/v24.11.0/bin
 
-            cd /home/ec2-user/niz-back
+            cd /home/ec2-user/niz-back || exit 1
 
             git pull origin main
-
             npm install
             npm run build
 
             pm2 restart niz-back || pm2 start dist/main.js --name niz-back
-
             pm2 save

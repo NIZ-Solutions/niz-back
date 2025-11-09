@@ -5,7 +5,6 @@ import {
   UseGuards,
   Req,
   BadRequestException,
-  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import {
@@ -28,7 +27,7 @@ export class PaymentsController {
 
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // ✅ (1) 결제 완료 (PC 전용 / 로그인 필요)
+  // (1) 결제 완료 (PC 전용 / 로그인 필요)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Post('complete')
@@ -38,7 +37,7 @@ export class PaymentsController {
     @Body() dto: CreatePaymentDto,
     @Req() req,
   ): Promise<PaymentResponseDto> {
-    this.logger.log('📥 결제 완료 요청', { body: dto, user: req.user });
+    this.logger.log('결제 완료 요청', { body: dto, user: req.user });
 
     if (!req.user?.id)
       throw new BadRequestException('인증 정보가 누락되었습니다.');
@@ -56,12 +55,12 @@ export class PaymentsController {
     try {
       return await this.paymentsService.completePayment(dto, userId);
     } catch (error) {
-      this.logger.error('❌ 결제 완료 처리 중 오류', error);
-      throw new InternalServerErrorException('결제 처리 중 서버 오류가 발생했습니다.');
+      this.logger.error('결제 완료 처리 중 오류', error);
+      throw error;
     }
   }
 
-  // ✅ (2) 결제 검증 (모바일 redirectUrl 전용 / 비로그인)
+  // (2) 결제 검증 (모바일 redirectUrl 전용 / 비로그인)
   @Post('verify')
   @ApiOperation({ summary: '결제 검증 (모바일 리디렉션 대응)' })
   @ApiOkResponse({ description: '결제 검증 결과', type: PaymentResponseDto })
@@ -72,16 +71,16 @@ export class PaymentsController {
       throw new BadRequestException('paymentId 또는 imp_uid가 필요합니다.');
 
     try {
-      const targetId = (paymentId || imp_uid) as string; // ✅ 타입 명시로 안전하게
+      const targetId = (paymentId || imp_uid) as string;
       const result = await this.paymentsService.verifyPayment(targetId);
       return { success: result.status === 'PAID', payment: result };
     } catch (error) {
-      this.logger.error('❌ 결제 검증 실패', error);
-      throw new InternalServerErrorException('결제 검증 중 서버 오류가 발생했습니다.');
+      this.logger.error('결제 검증 실패', error);
+      throw error;
     }
   }
 
-  // ✅ (3) 결제 취소
+  // (3) 결제 취소
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Post('cancel')
@@ -94,16 +93,16 @@ export class PaymentsController {
     try {
       return await this.paymentsService.cancelPayment(dto.paymentId);
     } catch (error) {
-      this.logger.error('❌ 결제 취소 처리 중 오류', error);
-      throw new InternalServerErrorException('결제 취소 중 서버 오류가 발생했습니다.');
+      this.logger.error('결제 취소 처리 중 오류', error);
+      throw error;
     }
   }
 
-  // ✅ (4) 포트원 Webhook
+  // (4) 포트원 Webhook
   @Post('webhook')
   @ApiOperation({ summary: '포트원 Webhook 수신 (자동 승인 통보용)' })
   async handleWebhook(@Body() payload: any) {
-    this.logger.log('📩 포트원 Webhook 수신', payload);
+    this.logger.log('포트원 Webhook 수신', payload);
 
     try {
       const { imp_uid, merchant_uid, status } = payload;
@@ -111,10 +110,10 @@ export class PaymentsController {
         throw new BadRequestException('필수 파라미터가 누락되었습니다.');
 
       await this.paymentsService.handleWebhook(imp_uid, merchant_uid, status);
-      this.logger.log(`✅ Webhook 처리 완료: ${merchant_uid} (${status})`);
+      this.logger.log(`Webhook 처리 완료: ${merchant_uid} (${status})`);
       return { success: true };
     } catch (err) {
-      this.logger.error('❌ Webhook 처리 실패', err);
+      this.logger.error('Webhook 처리 실패', err);
       return { success: false, error: err.message };
     }
   }

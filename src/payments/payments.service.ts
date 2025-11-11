@@ -28,11 +28,24 @@ export class PaymentsService {
     dto: CreatePaymentDto,
     userId: bigint,
   ): Promise<PaymentResponseDto> {
-    const { paymentId } = dto;
+    const { paymentId, advicedAt } = dto;
 
     // 중복 결제 방지
     const existing = await this.prisma.payment.findUnique({ where: { paymentId } });
     if (existing) return this.formatResponse(existing);
+
+    // 예약 시간 중복 체크 (advicedAt 기준)
+    if (advicedAt) {
+      const duplicateSlot = await this.prisma.payment.findFirst({
+        where: {
+          advicedAt: new Date(advicedAt),
+          status: { not: 'CANCELLED' }, 
+        },
+      });
+      if (duplicateSlot) {
+        throw new ConflictException('이미 해당 시간에 예약이 존재합니다.');
+      }
+    }
 
     let payment: any;
     try {

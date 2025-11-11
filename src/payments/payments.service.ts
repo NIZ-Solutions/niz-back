@@ -34,7 +34,7 @@ export class PaymentsService {
     const existing = await this.prisma.payment.findUnique({ where: { paymentId } });
     if (existing) return this.formatResponse(existing);
 
-    let payment: any; 
+    let payment: any;
     try {
       payment = (await this.paymentClient.getPayment({ paymentId })) as any;
     } catch {
@@ -74,7 +74,7 @@ export class PaymentsService {
 
   // (2) 결제 검증 (모바일 리디렉션)
   async verifyPayment(paymentId: string): Promise<PaymentResponseDto> {
-    let payment: any; // 🔸 타입 단언
+    let payment: any;
     try {
       payment = (await this.paymentClient.getPayment({ paymentId })) as any;
     } catch {
@@ -122,7 +122,7 @@ export class PaymentsService {
     try {
       const updated = await this.prisma.payment.update({
         where: { paymentId },
-        data: { status: 'CANCELED' },
+        data: { status: payment.status },
       });
       return this.formatResponse(updated);
     } catch (err) {

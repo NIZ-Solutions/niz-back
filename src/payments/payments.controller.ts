@@ -17,8 +17,11 @@ import {
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CancelPaymentDto } from './dto/cancel-payment.dto';
-import { PaymentResponseDto } from './dto/payment-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+import { CompletePaymentResponseDto } from './dto/complete-payment-response.dto';
+import { VerifyPaymentResponseDto } from './dto/verify-payment-response.dto';
+import { CancelPaymentResponseDto } from './dto/cancel-payment-response.dto';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -27,16 +30,19 @@ export class PaymentsController {
 
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // (1) 결제 완료 (PC 전용 / 로그인 필요)
+  // 결제 완료 (PC 전용 / 로그인 필요)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Post('complete')
   @ApiOperation({ summary: '카드 결제 완료 처리 (PC)' })
-  @ApiCreatedResponse({ description: '결제 완료', type: PaymentResponseDto })
+  @ApiCreatedResponse({
+    description: '결제 완료',
+    type: CompletePaymentResponseDto,
+  })
   async complete(
     @Body() dto: CreatePaymentDto,
     @Req() req,
-  ): Promise<PaymentResponseDto> {
+  ): Promise<CompletePaymentResponseDto> {
     this.logger.log('결제 완료 요청', { body: dto, user: req.user });
 
     if (!req.user?.id)
@@ -53,18 +59,24 @@ export class PaymentsController {
       throw new BadRequestException('결제 정보가 불완전합니다.');
 
     try {
-      return await this.paymentsService.completePayment(dto, userId);
+      const result = await this.paymentsService.completePayment(dto, userId);
+      return { success: true, data: result };
     } catch (error) {
       this.logger.error('결제 완료 처리 중 오류', error);
       throw error;
     }
   }
 
-  // (2) 결제 검증 (모바일 redirectUrl 전용 / 비로그인)
+  // 결제 검증 (모바일 redirectUrl 전용 / 비로그인)
   @Post('verify')
   @ApiOperation({ summary: '결제 검증 (모바일 리디렉션 대응)' })
-  @ApiOkResponse({ description: '결제 검증 결과', type: PaymentResponseDto })
-  async verify(@Body() body: { paymentId?: string; imp_uid?: string }) {
+  @ApiOkResponse({
+    description: '결제 검증 결과',
+    type: VerifyPaymentResponseDto,
+  })
+  async verify(
+    @Body() body: { paymentId?: string; imp_uid?: string },
+  ): Promise<VerifyPaymentResponseDto> {
     const { paymentId, imp_uid } = body;
 
     if (!paymentId && !imp_uid)
@@ -80,25 +92,31 @@ export class PaymentsController {
     }
   }
 
-  // (3) 결제 취소
+  // 결제 취소
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Post('cancel')
   @ApiOperation({ summary: '결제 취소 처리' })
-  @ApiOkResponse({ description: '결제 취소 완료', type: PaymentResponseDto })
-  async cancel(@Body() dto: CancelPaymentDto): Promise<PaymentResponseDto> {
+  @ApiOkResponse({
+    description: '결제 취소 완료',
+    type: CancelPaymentResponseDto,
+  })
+  async cancel(
+    @Body() dto: CancelPaymentDto,
+  ): Promise<CancelPaymentResponseDto> {
     if (!dto.paymentId)
       throw new BadRequestException('paymentId가 필요합니다.');
 
     try {
-      return await this.paymentsService.cancelPayment(dto.paymentId);
+      const result = await this.paymentsService.cancelPayment(dto.paymentId);
+      return { success: true, data: result };
     } catch (error) {
       this.logger.error('결제 취소 처리 중 오류', error);
       throw error;
     }
   }
 
-  // (4) 포트원 Webhook
+  // 포트원 Webhook
   @Post('webhook')
   @ApiOperation({ summary: '포트원 Webhook 수신 (자동 승인 통보용)' })
   async handleWebhook(@Body() payload: any) {

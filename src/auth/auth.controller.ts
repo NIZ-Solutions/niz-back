@@ -6,7 +6,7 @@ import {
   UseGuards,
   Req,
   HttpCode,
-  Query
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -19,7 +19,7 @@ import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { LogoutResponseDto } from './dto/logout-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { KakaoAuthGuard } from './guards/kakao.guard';
+import { KakaoAuthGuard } from './guards/kakao.guard'; 
 import {
   ApiTags,
   ApiOperation,
@@ -28,13 +28,97 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
+import { AdminSignupDto } from './dto/admin-signup.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // 회원가입
+  // =======================
+  // 관리자 회원가입
+  // =======================
+  @Public()
+  @Post('admin/signup')
+  @ApiOperation({ summary: '관리자 회원가입' })
+  @ApiBody({
+    description: '관리자 회원가입 요청 DTO',
+    schema: {
+      example: {
+        userId: 'admin01',
+        password: 'Admin1234!',
+        name: '관리자',
+        phone: '01012345678',
+        privacyPolicy: true,
+        termsOfService: true,
+        paymentPolicy: true,
+        adminSecret: 'THIS_IS_SECRET_2025',
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: '관리자 회원가입 성공',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: '1',
+          userId: 'admin01',
+          name: '관리자',
+          phone: '01012345678',
+          createdAt: '2025-09-29T15:30:00.000Z',
+          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          refreshToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      },
+    },
+  })
+  async adminSignup(@Body() dto: AdminSignupDto): Promise<SignupResponseDto> {
+    return this.authService.adminSignup(dto);
+  }
+
+  // =======================
+  // 관리자 로그인
+  // =======================
+  @Public()
+  @Post('admin/login')
+  @HttpCode(200)
+  @ApiOperation({ summary: '관리자 로그인' })
+  @ApiBody({
+    description: '관리자 로그인 요청 DTO',
+    schema: {
+      example: {
+        userId: 'admin01',
+        password: 'Admin1234!',
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: '관리자 로그인 성공',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: '1',
+          userId: 'admin01',
+          name: '관리자',
+          phone: '01012345678',
+          createdAt: '2025-09-29T15:30:00.000Z',
+          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          refreshToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      },
+    },
+  })
+  async adminLogin(@Body() dto: LoginDto): Promise<LoginResponseDto> {
+    return this.authService.adminLogin(dto);
+  }
+
+  // =======================
+  // 일반 회원가입
+  // =======================
   @Public()
   @Post('signup')
   @ApiOperation({ summary: '회원가입 (모든 약관 동의 필요)' })
@@ -64,7 +148,8 @@ export class AuthController {
           phone: '01012345678',
           createdAt: '2025-09-29T15:30:00.000Z',
           accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          refreshToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
       },
     },
@@ -73,7 +158,9 @@ export class AuthController {
     return this.authService.signup(dto);
   }
 
-  // 로그인
+  // =======================
+  // 일반 로그인
+  // =======================
   @Public()
   @Post('login')
   @HttpCode(200)
@@ -99,7 +186,8 @@ export class AuthController {
           phone: '01012345678',
           createdAt: '2025-09-29T15:30:00.000Z',
           accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          refreshToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
       },
     },
@@ -108,7 +196,9 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  // =======================
   // 토큰 재발급
+  // =======================
   @Public()
   @Post('refresh')
   @HttpCode(200)
@@ -117,7 +207,8 @@ export class AuthController {
     description: '리프레시 토큰을 전달하여 새 토큰을 발급받음',
     schema: {
       example: {
-        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       },
     },
   })
@@ -127,8 +218,10 @@ export class AuthController {
       example: {
         success: true,
         data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          accessToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          refreshToken:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
       },
     },
@@ -170,12 +263,12 @@ export class AuthController {
   async kakaoLogin(@Body('code') code: string): Promise<LoginResponseDto> {
     return this.authService.kakaoLoginByCode(code);
   }
-   
-  // 카카오 리다이렉트
+
+  // 카카오 리다이렉트 (모바일/웹 리디렉션 처리용)
   @Public()
   @Get('kakao/redirect')
   async kakaoRedirect(@Query('code') code: string) {
-     return this.authService.kakaoLoginByCode(code);
+    return this.authService.kakaoLoginByCode(code);
   }
 
   // 로그아웃
@@ -203,7 +296,10 @@ export class AuthController {
       },
     },
   })
-  async logout(@Req() req, @Body() dto: LogoutDto): Promise<{ message: string }> {
+  async logout(
+    @Req() req,
+    @Body() dto: LogoutDto,
+  ): Promise<{ message: string }> {
     await this.authService.logout(req.user.id, dto.refreshToken);
     return { message: '로그아웃 되었습니다.' };
   }

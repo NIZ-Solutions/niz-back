@@ -31,7 +31,9 @@ export class PaymentsService {
     const { paymentId, advicedAt } = dto;
 
     // 중복 결제 방지
-    const existing = await this.prisma.payment.findUnique({ where: { paymentId } });
+    const existing = await this.prisma.payment.findUnique({
+      where: { paymentId },
+    });
     if (existing) return this.formatResponse(existing);
 
     // 예약 시간 중복 체크 (advicedAt 기준)
@@ -39,7 +41,7 @@ export class PaymentsService {
       const duplicateSlot = await this.prisma.payment.findFirst({
         where: {
           advicedAt: new Date(advicedAt),
-          status: { not: 'CANCELLED' }, 
+          status: { not: 'CANCELLED' },
         },
       });
       if (duplicateSlot) {
@@ -76,7 +78,9 @@ export class PaymentsService {
       return this.formatResponse(saved);
     } catch (e: any) {
       if (e.code === 'P2002') {
-        const current = await this.prisma.payment.findUnique({ where: { paymentId } });
+        const current = await this.prisma.payment.findUnique({
+          where: { paymentId },
+        });
         if (current) return this.formatResponse(current);
         throw new ConflictException('DUPLICATE_PAYMENT');
       }
@@ -206,6 +210,51 @@ export class PaymentsService {
       email: p.email,
       otherText: p.otherText ?? undefined,
       createdAt: p.createdAt,
+    };
+  }
+
+  // (6) ✅ 관리자용 결제 목록 조회
+  async getPaymentsForAdmin(options?: {
+    userId?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (options?.userId) {
+      where.userId = BigInt(options.userId);
+    }
+
+    if (options?.status) {
+      where.status = options.status;
+    }
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    const data = items.map((p) => this.formatResponse(p));
+
+    return {
+      success: true,
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 }

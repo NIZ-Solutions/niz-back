@@ -21,13 +21,28 @@ jobs:
           key: ${{ secrets.NIZ_KEY }}
           script: |
             ssh -i ~/niz-keypair.pem ec2-user@10.0.135.238 << 'EOF'
-              cd ~/niz-back
-              git pull origin main
-              npm install
+              set -e
 
+              cd ~/niz-back
+
+              echo "[Deploy] git pull..."
+              git pull origin main
+
+              echo "[Deploy] npm install..."
+              npm install --production=false
+
+              echo "[Deploy] prisma migrate deploy..."
               npx prisma migrate deploy
 
+              echo "[Deploy] prisma generate..."
+              npx prisma generate
+
+              echo "[Deploy] build app..."
               npm run build
+
+              echo "[Deploy] restart pm2..."
               pm2 restart niz-back || pm2 start dist/main.js --name niz-back
               pm2 save
+
+              echo "[Deploy] done."
             EOF

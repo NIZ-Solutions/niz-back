@@ -57,15 +57,9 @@ export class AdminPaymentsController {
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
-    const result = await this.paymentsService.getPaymentsForAdmin({
+    return this.paymentsService.getPaymentsForAdmin({
       page: Number(page),
       limit: Number(limit),
     });
-
-    return {
-      success: true,
-      data: result.items,
-      meta: result.meta,
-    };
   }
 }

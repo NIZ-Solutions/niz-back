@@ -213,10 +213,8 @@ export class PaymentsService {
     };
   }
 
-  // (6) ✅ 관리자용 결제 목록 조회
+  // (6) ✅ 관리자용 결제 목록 조회 (전체, 최신순)
   async getPaymentsForAdmin(options?: {
-    userId?: string;
-    status?: string;
     page?: number;
     limit?: number;
   }) {
@@ -224,24 +222,13 @@ export class PaymentsService {
     const limit = options?.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.PaymentWhereInput = {};
-
-    if (options?.userId) {
-      where.userId = BigInt(options.userId);
-    }
-
-    if (options?.status) {
-      where.status = options.status;
-    }
-
     const [items, total] = await this.prisma.$transaction([
       this.prisma.payment.findMany({
-        where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' }, // 🔥 최신순
       }),
-      this.prisma.payment.count({ where }),
+      this.prisma.payment.count(),
     ]);
 
     const data = items.map((p) => this.formatResponse(p));

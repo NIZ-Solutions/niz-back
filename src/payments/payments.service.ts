@@ -213,7 +213,7 @@ export class PaymentsService {
     };
   }
 
-  // (6) ✅ 관리자용 결제 목록 조회 (전체, 최신순)
+  // (6) 관리자용 결제 목록 조회 (전체, 최신순)
   async getPaymentsForAdmin(options?: {
     page?: number;
     limit?: number;
@@ -226,7 +226,7 @@ export class PaymentsService {
       this.prisma.payment.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }, // 🔥 최신순
+        orderBy: { createdAt: 'desc' }, // 최신순
       }),
       this.prisma.payment.count(),
     ]);
@@ -234,8 +234,7 @@ export class PaymentsService {
     const data = items.map((p) => this.formatResponse(p));
 
     return {
-      success: true,
-      data,
+      items: data,
       meta: {
         page,
         limit,

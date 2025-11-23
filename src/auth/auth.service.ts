@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import * as bcrypt from 'bcrypt';
+  import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -18,14 +18,9 @@ import * as crypto from 'crypto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { Role } from '@prisma/client';
-import { AdminSignupDto } from './dto/admin-signup.dto';
 
 interface KakaoTokenResponse {
   access_token: string;
-  token_type: string;
-  refresh_token?: string;
-  expires_in?: number;
-  scope?: string;
 }
 
 interface KakaoUserResponse {
@@ -33,7 +28,6 @@ interface KakaoUserResponse {
   kakao_account: {
     profile: {
       nickname: string;
-      profile_image_url?: string;
     };
     email?: string;
   };
@@ -49,17 +43,17 @@ export class AuthService {
     private readonly httpService: HttpService,
   ) {}
 
-  // =======================
+  // ======================
   // 일반 회원가입
-  // =======================
+  // ======================
   async signup(dto: SignupDto): Promise<SignupResponseDto> {
-    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy)
-      throw new BadRequestException(
-        '필수 약관에 모두 동의해야 회원가입이 가능합니다.',
-      );
+    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy) {
+      throw new BadRequestException('필수 약관 동의가 필요합니다.');
+    }
 
     try {
       const passwordHash = await bcrypt.hash(dto.password, 10);
+
       const user = await this.prisma.user.create({
         data: {
           userId: dto.userId,
@@ -69,13 +63,13 @@ export class AuthService {
           privacyPolicy: dto.privacyPolicy,
           termsOfService: dto.termsOfService,
           paymentPolicy: dto.paymentPolicy,
-          // role: Role.USER  // Prisma 기본값이 USER라면 생략 가능
+          role: Role.USER, // 기본 유저
         },
       });
 
       return this.issueLoginTokens(user);
     } catch (err: any) {
-      if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
+      if (err.code === 'P2002') {
         throw new ConflictException('이미 존재하는 아이디입니다.');
       }
       this.logger.error('회원가입 중 오류 발생', err);
@@ -83,51 +77,14 @@ export class AuthService {
     }
   }
 
-  // =======================
-  // 관리자 회원가입
-  // =======================
-  async adminSignup(dto: AdminSignupDto): Promise<SignupResponseDto> {
-    if (dto.adminSecret !== process.env.ADMIN_SIGNUP_SECRET) {
-      throw new UnauthorizedException('관리자 회원가입 시크릿이 올바르지 않습니다.');
-    }
-
-    if (!dto.privacyPolicy || !dto.termsOfService || !dto.paymentPolicy)
-      throw new BadRequestException(
-        '필수 약관에 모두 동의해야 회원가입이 가능합니다.',
-      );
-
-    try {
-      const passwordHash = await bcrypt.hash(dto.password, 10);
-      const user = await this.prisma.user.create({
-        data: {
-          userId: dto.userId,
-          passwordHash,
-          name: dto.name,
-          phone: dto.phone,
-          privacyPolicy: dto.privacyPolicy,
-          termsOfService: dto.termsOfService,
-          paymentPolicy: dto.paymentPolicy,
-          role: Role.ADMIN, // 🔥 관리자
-        },
-      });
-
-      return this.issueLoginTokens(user);
-    } catch (err: any) {
-      if (err.code === 'P2002' && err.meta?.target?.includes('userId')) {
-        throw new ConflictException('이미 존재하는 아이디입니다.');
-      }
-      this.logger.error('관리자 회원가입 중 오류 발생', err);
-      throw err;
-    }
-  }
-
-  // =======================
+  // ======================
   // 일반 로그인
-  // =======================
+  // ======================
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { userId: dto.userId },
     });
+
     if (!user) throw new UnauthorizedException('아이디가 올바르지 않습니다.');
     if (!user.passwordHash)
       throw new UnauthorizedException('비밀번호 로그인 불가 계정입니다.');
@@ -142,9 +99,9 @@ export class AuthService {
     return this.issueLoginTokens(user);
   }
 
-  // =======================
-  // 관리자 로그인
-  // =======================
+  // ======================
+  // 관리자 로그인 (role = ADMIN 필수)
+  // ======================
   async adminLogin(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { userId: dto.userId },
@@ -169,12 +126,10 @@ export class AuthService {
     return this.issueLoginTokens(user);
   }
 
-  // =======================
+  // ======================
   // 카카오 로그인
-  // =======================
+  // ======================
   async kakaoLoginByCode(code: string): Promise<LoginResponseDto> {
-    console.log('KAKAO_REDIRECT_URI:', process.env.KAKAO_REDIRECT_URI);
-
     try {
       const tokenRes = await firstValueFrom(
         this.httpService.post<KakaoTokenResponse>(
@@ -191,14 +146,11 @@ export class AuthService {
       );
 
       const accessToken = tokenRes.data.access_token;
-      if (!accessToken) throw new UnauthorizedException('카카오 토큰 발급 실패');
 
       const userRes = await firstValueFrom(
         this.httpService.get<KakaoUserResponse>(
           'https://kapi.kakao.com/v2/user/me',
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          },
+          { headers: { Authorization: `Bearer ${accessToken}` } },
         ),
       );
 
@@ -229,7 +181,7 @@ export class AuthService {
               privacyPolicy: true,
               termsOfService: true,
               paymentPolicy: true,
-              role: Role.USER, // 카카오 유저는 일반유저
+              role: Role.USER,
               auths: {
                 create: {
                   provider: 'kakao',
@@ -250,9 +202,9 @@ export class AuthService {
     }
   }
 
-  // =======================
-  // refresh / logout 그대로
-  // =======================
+  // ======================
+  // 토큰 재발급
+  // ======================
   async refreshToken(token: string): Promise<RefreshResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync(token, {
@@ -285,7 +237,13 @@ export class AuthService {
     }
   }
 
-  async logout(userId: string, refreshToken: string): Promise<LogoutResponseDto> {
+  // ======================
+  // 로그아웃
+  // ======================
+  async logout(
+    userId: string,
+    refreshToken: string,
+  ): Promise<LogoutResponseDto> {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await this.prisma.refreshToken.updateMany({
       where: { userId: BigInt(userId), tokenHash, revoked: false },
@@ -294,14 +252,14 @@ export class AuthService {
     return { success: true, message: '로그아웃 되었습니다.' };
   }
 
-  // =======================
-  // 토큰 발급 시 role 포함 (핵심)
-  // =======================
+  // ======================
+  // 토큰 발급 (role 포함)
+  // ======================
   private async issueLoginTokens(user: any): Promise<LoginResponseDto> {
     const payload = {
       sub: user.id.toString(),
       userId: user.userId,
-      role: user.role, // 🔥 JWT에 role 포함
+      role: user.role,
     };
     const accessToken = await this.jwtService.signAsync(payload, {
       expiresIn: '1h',
